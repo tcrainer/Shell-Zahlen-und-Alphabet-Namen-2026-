@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zahlen- &amp; Buchstaben-Spiel</title>
+<style>
+  :root{--bg:#0f172a;--card:#1e293b;--ink:#f8fafc;--muted:#94a3b8;--gold:#fbbf24;--red:#be123c;--green:#16a34a;--blue:#38bdf8}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--ink);font-family:system-ui,Segoe UI,Roboto,sans-serif;user-select:none}
+  [hidden]{display:none!important}
+  button{border:0;border-radius:12px;background:var(--card);color:var(--ink);cursor:pointer;font-size:18px}
+  button:active{transform:scale(.97)}
+  #app{display:flex;flex-direction:column;height:100vh;background:var(--bg)}
+  #app.flash{animation:flash .5s}
+
+  .top{display:flex;flex-wrap:wrap;gap:8px;padding:10px 12px 0;align-items:center}
+  .top .sp{flex:1}
+  .top button{padding:8px 14px;font-size:16px;color:var(--muted)}
+  .top button.on{background:var(--gold);color:#111}
+  .seg{display:flex;gap:2px;background:var(--card);border-radius:12px;padding:3px}
+  .seg button{background:transparent;padding:6px 12px}
+  .lab{color:var(--muted);font-size:15px}
+  #gm.on{background:var(--red);color:#fff}
+
+  /* 1: class */
+  #v1{flex:1;display:flex;gap:18px;justify-content:center;align-items:center;flex-wrap:wrap;padding:20px}
+  #v1 button{font-size:clamp(22px,4vw,48px);padding:28px 44px;font-weight:700}
+
+  /* 2: who is here + number range */
+  #v3{flex:1;min-height:0;display:flex;flex-direction:column}
+  #rl{flex:1;min-height:0;overflow:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;padding:12px;align-content:start}
+  .rc{display:flex;align-items:center;justify-content:space-between;gap:4px;cursor:pointer;border-radius:12px;color:var(--ink);padding:12px 8px;font-size:18px;font-weight:600;text-align:left;white-space:nowrap;overflow:hidden;background:#14532d;border:2px solid #16a34a}
+  .rc .rn{overflow:hidden;text-overflow:ellipsis;min-width:0;font-weight:600}
+  .rc .rn span{display:inline-block;width:1.3em;font-weight:800}
+  .rc .ez{font-style:normal;opacity:.28;padding:0 6px;border-radius:8px;font-size:16px}
+  .rc .ez.on{opacity:1;background:#0c4a6e}
+  .tg{padding:12px 18px;font-size:19px}
+  .tg.on{background:var(--gold);color:#111;font-weight:700}
+  #abcbox{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  #numbox{display:flex;flex-direction:column;gap:8px}
+  .rc.off{background:var(--card);border-color:transparent;color:#64748b;text-decoration:line-through}
+  #rangebox{padding:4px 12px 8px;display:flex;flex-direction:column;gap:8px}
+  #pre{display:flex;flex-wrap:wrap;gap:6px}
+  #pre button{padding:8px 14px;font-size:17px}
+  #pre button.on{background:var(--blue);color:#111;font-weight:700}
+  #cust{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+  #cust label{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:17px}
+  #cust input{width:90px;font-size:22px;padding:6px 10px;border-radius:10px;border:2px solid #334155;background:#0b1220;color:var(--ink);text-align:center;user-select:text}
+  #cust input.bad{border-color:#ef4444}
+  #add{padding:8px 14px;font-size:17px;background:#0c4a6e;color:#e0f2fe}
+  #add:disabled{opacity:.35;cursor:default}
+  #sel{display:flex;gap:8px;flex-wrap:wrap;align-items:center;min-height:42px}
+  #sel .sc{background:var(--blue);color:#111;padding:8px 14px;border-radius:999px;font-weight:700;font-size:18px}
+  #sel .sc i{font-style:normal;margin-left:8px;opacity:.6}
+  #go{flex:1;background:var(--gold);color:#111;font-weight:800;font-size:24px;padding:14px}
+  #go:disabled{opacity:.35;cursor:default}
+
+  /* 3: play */
+  #v2{flex:1;min-height:0;display:grid;grid-template-columns:1fr;grid-template-rows:auto 1fr auto;grid-template-areas:"top" "stage" "bot"}
+  #v2 > .top{grid-area:top} #stage{grid-area:stage} #board{grid-area:board} #v2 > .bot{grid-area:bot}
+  #v2.lives.v{grid-template-columns:1fr minmax(250px,24vw);grid-template-areas:"top top" "stage board" "bot bot"}
+  #v2.lives.h{grid-template-rows:auto 1fr auto auto;grid-template-areas:"top" "stage" "board" "bot"}
+
+  #stage{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:0;min-width:0;padding:0 12px}
+  #nu{font-weight:800;color:#fff;line-height:.95;cursor:pointer;font-size:clamp(80px,min(30vw,38vh),400px)}
+  #nm{font-weight:700;color:var(--gold);text-align:center;line-height:1.05;font-size:clamp(28px,min(9vw,10vh),120px)}
+  #nm.out{color:#64748b;text-decoration:line-through}
+  #nm.win{color:#4ade80;animation:pulse .8s ease-in-out infinite alternate}
+  #nm.over{color:#f87171}
+  #nm.shake{animation:shake .4s}
+  #hs{font-size:clamp(34px,7vh,84px);letter-spacing:6px;line-height:1.1;margin-top:.1em}
+
+  .ht{font-style:normal;display:inline-block}
+  .ht.f{color:#ef4444} .ht.e{color:#475569}
+  .ht.h{background:linear-gradient(90deg,#ef4444 50%,#475569 50%);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .ht.crack{animation:crack .6s ease-out}
+
+  /* everybody visible: one column (hochkant) or one row (breit) – never scrolls */
+  #board{min-height:0;min-width:0;overflow:hidden;display:flex;gap:6px;padding:8px 12px;font-size:var(--fs,16px)}
+  .v #board{flex-direction:column}
+  .h #board{flex-direction:row;justify-content:center;height:clamp(96px,17vh,160px)}
+  .chip{background:var(--card);border:3px solid transparent;border-radius:12px;cursor:pointer;min-width:0;min-height:0;display:flex;overflow:hidden}
+  .chip b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .chip .hh{white-space:nowrap;line-height:1}
+  .v .chip{flex:1 1 0;max-height:60px;flex-direction:row;align-items:center;justify-content:space-between;gap:8px;padding:0 12px}
+  .v .chip .hh{font-size:.95em;letter-spacing:1px}
+  .h .chip{flex:1 1 0;max-width:230px;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:4px}
+  .h .chip .hh{font-size:var(--hfs,16px);letter-spacing:1px}
+  .chip.cur{border-color:var(--gold);box-shadow:0 0 14px #fbbf2477;background:#2b3a52}
+  .chip.out{opacity:.45} .chip.out b{text-decoration:line-through}
+  .chip.lead{border-color:#4ade80}
+
+  .bot{display:flex;gap:8px;padding:10px 12px}
+  .bot button{flex:1;font-size:26px;padding:14px 6px;background:var(--ink);color:#111;font-weight:700}
+  .bot .m{background:var(--red);color:#fff;font-size:22px}
+  .bot .p{background:var(--green);color:#fff;font-size:22px}
+
+  @keyframes flash{0%{background:#991b1b}100%{background:var(--bg)}}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-14px)}40%{transform:translateX(14px)}60%{transform:translateX(-8px)}80%{transform:translateX(8px)}}
+  @keyframes crack{0%{transform:scale(1.9) rotate(-20deg);opacity:0}60%{transform:scale(1.2) rotate(10deg);opacity:1}100%{transform:scale(1) rotate(0)}}
+  @keyframes pulse{from{transform:scale(1)}to{transform:scale(1.07)}}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- 1: class -->
+  <div id="v1"></div>
+
+  <!-- 2: who is here + which numbers -->
+  <div id="v3" hidden>
+    <div class="top"><button id="rb" title="Andere Klasse">◂</button><span class="lab" id="rt"></span><span class="sp"></span><button id="ra">Alle da</button></div>
+    <div id="rl"></div>
+    <div id="rangebox">
+      <div class="seg" id="ct" style="align-self:flex-start">
+        <button data-ct="num">🔢 Zahlen</button>
+        <button data-ct="abc">🔤 Alphabet</button>
+      </div>
+      <div id="numbox">
+        <div class="lab">Zahlen – mehrere Bereiche möglich, einfach antippen:</div>
+        <div id="pre"></div>
+        <div id="cust">
+          <label>eigener Bereich: von <input id="lo" type="number" min="0" max="999" inputmode="numeric"></label>
+          <label>bis <input id="hi" type="number" min="0" max="999" inputmode="numeric"></label>
+          <button id="add">＋ hinzufügen</button>
+          <span class="lab" id="rmsg"></span>
+        </div>
+        <div id="sel"></div>
+      </div>
+      <div id="abcbox" hidden>
+        <button id="hardb" class="tg" title="g h i j z v w y e q kommen häufiger dran"></button>
+        <button id="diphb" class="tg" title="au · eu · ie · ei zusätzlich"></button>
+        <span class="lab">🔰 hinter einem Namen = nur leichte Buchstaben (ohne g h i j z v w y e q und ohne Diphthonge)</span>
+      </div>
+    </div>
+    <div class="bot"><button id="go">Los ▶</button></div>
+  </div>
+
+  <!-- 3: play -->
+  <div id="v2" hidden>
+    <div class="top">
+      <button id="chg" title="Klasse wechseln"></button>
+      <button id="at" title="Wer ist da? / Zahlenbereich ändern"></button>
+      <span class="sp"></span>
+      <div class="seg">
+        <button data-m="order"  title="Der Reihe nach">➡️</button>
+        <button data-m="random" title="Völlig zufällig">🎲</button>
+        <button data-m="round"  title="Zufällig – jeder einmal, dann neu mischen">🔁</button>
+      </div>
+      <button id="gm" title="Spiel mit Leben">♥</button>
+      <span class="lab" id="l1" hidden>Leben:</span>
+      <div class="seg" id="sl" hidden><button data-n="1">1♥</button><button data-n="2">2♥</button><button data-n="3">3♥</button></div>
+      <button id="or" title="Namen hochkant ⬍ oder breit ⬌" hidden></button>
+      <button id="rs" title="Neues Spiel (alle wieder volle Leben)" hidden>↺</button>
+      <button id="fs" title="Vollbild">⛶</button>
+    </div>
+    <div id="stage">
+      <div id="nu" title="Antippen = neue Zahl">?</div>
+      <div id="nm">?</div>
+      <div id="hs" hidden></div>
+    </div>
+    <div id="board" hidden></div>
+    <div class="bot">
+      <button id="up" title="zurück">▲</button>
+      <button id="m1" class="m" title="Ein Leben weniger" hidden>−1</button>
+      <button id="m2" class="m" title="Ein halbes Leben weniger" hidden>−½</button>
+      <button id="p2" class="p" title="Ein halbes Leben dazu" hidden>+½</button>
+      <button id="p1" class="p" title="Ein Leben dazu" hidden>+1</button>
+      <button id="dn" title="weiter">▼</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const CLASSES = {
+  "S-De-x1a": ["Alice", "Theo", "Freddie B.", "Archi", "Zara F.", "Oscar", "Zara M.", "Nicholas", "Barron", "Edward", "Conor", "Isabel", "Fred T.", "Tom"],
+  "S-De-y1a": ["Jack", "Oscar", "Rafe", "Freddie", "Willoughby", "Algy", "Oliver D.", "Monty", "Zoe", "Annabel", "Ava", "Stefan", "Tom", "Tal", "Ivo", "Eloise", "Oliver U.", "Alfie", "Stella", "Archie", "Luca"],
+  "S-De-x2a": ["Roscoe", "Arabella D.", "Bay", "Felix", "Arabella H.", "Mason", "Ali", "Ruben", "Charles", "Louis", "Toby", "Jack"]
+};
+const PRESETS = ["0-5","5-10","0-10","0-12","10-15","15-20","10-20","0-20","20-30","30-40","40-50","50-60","60-70","70-80","80-90","90-100","0-100"];
+
+const lsGet = k => { try { return localStorage.getItem(k); } catch(e) { return null; } };
+const lsSet = (k,v) => { try { localStorage.setItem(k,v); } catch(e) {} };
+const $ = id => document.getElementById(id);
+const shuffle = a => { for (let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]];} return a; };
+
+const MAXL = 5;                                   // bonus lives up to 5
+let cls = null, view = "class";                   // class | setup | play
+let mode   = lsGet("nmode") || "random";          // order | random | round
+let start  = +lsGet("nstart") || 3;               // starting lives 1 | 2 | 3
+let orient = lsGet("norient") || "v";             // v = hochkant, h = breit
+let gameOn = lsGet("ngame") !== "0";              // hearts on by default
+const validR = r => { const m = /^(\d{1,3})-(\d{1,3})$/.exec(r); return !!m && +m[1] <= +m[2] && +m[2] <= 999; };
+const sortR = a => a.sort((x, y) => { const [a1,a2] = x.split("-").map(Number), [b1,b2] = y.split("-").map(Number); return a1 - b1 || a2 - b2; });
+let sel = sortR([...new Set((lsGet("nsel") || "").split(",").filter(validR))]);        // chosen number ranges, e.g. ["40-50","60-70"]
+if (!sel.length) sel = ["0-10"];
+const fmtR = r => r.replace("-", "–");
+let content = lsGet("ncontent") === "abc" ? "abc" : "num";          // num = Zahlen, abc = Alphabet
+let abcHard = lsGet("nhard") !== "0";                                // difficult letters come up more often
+let abcDiph = lsGet("ndiph") === "1";                                // diphthongs au eu ie ei (off until switched on)
+const HARD = "ghijzvwyeq".split(""), ALL = "abcdefghijklmnopqrstuvwxyz".split(""), DIPH = ["au","eu","ie","ei"];
+let easyList = null; try { easyList = JSON.parse(lsGet("neasy")); } catch(e) {}
+const EASY = new Set(Array.isArray(easyList) ? easyList : ["S-De-x1a|Fred T."]);   // pupils who only get the easy letters
+const saveEasy = () => lsSet("neasy", JSON.stringify([...EASY]));
+let hist = [], nums = [], idx = -1, pool = [], recent = [], ordIdx = -1, lastNum = -1;
+const LIVES = {}, ABSENT = {};
+const rosterOf = c => CLASSES[c].filter(n => !(ABSENT[c] && ABSENT[c].has(n)));
+const list  = () => rosterOf(cls);
+const getL  = (c,n) => (LIVES[c] && LIVES[c][n] !== undefined) ? LIVES[c][n] : start;
+const setL  = (c,n,v) => { (LIVES[c] = LIVES[c] || {})[n] = v; };
+const alive = c => rosterOf(c).filter(n => getL(c,n) > 0);
+const total = () => list().length;
+const over  = () => { if (!gameOn) return false; const a = alive(cls).length; return a === 0 || (a === 1 && total() > 1); };
+const pulse = (el, c) => { el.classList.remove(c); void el.offsetWidth; el.classList.add(c); };
+const hearts = (l, crackAt = -1) => {
+  let h = ""; const slots = Math.max(start, Math.ceil(l));
+  for (let i = 0; i < slots; i++) h += `<i class="ht ${l >= i+1 ? "f" : l >= i+.5 ? "h" : "e"}${i === crackAt ? " crack" : ""}">♥</i>`;
+  return h;
+};
+
+// ---- numbers & names ----
+const allNums = () => { const s = new Set(); sel.forEach(r => { const [a,b] = r.split("-").map(Number); for (let i = a; i <= b; i++) s.add(i); }); return [...s]; };
+const abcPool = name => {                                            // weighted list: difficult letters appear 3x as often
+  const easy = EASY.has(cls + "|" + name), items = [];
+  ALL.forEach(l => { const hard = HARD.includes(l); if (easy && hard) return; for (let i = 0; i < (abcHard && hard ? 3 : 1); i++) items.push(l); });
+  if (abcDiph && !easy) DIPH.forEach(d => { for (let i = 0; i < (abcHard ? 3 : 1); i++) items.push(d); });
+  return items;
+};
+const genItem = name => {
+  const A = content === "abc" ? abcPool(name) : allNums();
+  if (new Set(A).size === 1) return (lastNum = A[0]);
+  let n; do { n = A[Math.random()*A.length|0]; } while (n === lastNum);
+  return (lastNum = n);
+};
+const fmtItem = x => typeof x === "number" ? x : (x.length === 1 ? x.toUpperCase() : x);
+const pushPick = n => { hist.length = idx + 1; nums.length = idx + 1; hist.push(n); nums.push(genItem(n)); idx = hist.length - 1; };
+
+function pickName(){
+  const L = list(), base = gameOn ? alive(cls) : L;
+  if (!base.length) return null;
+  if (mode === "order") {
+    for (let k = 1; k <= L.length; k++) { const j = (ordIdx + k) % L.length; if (base.includes(L[j])) { ordIdx = j; return L[j]; } }
+    return null;
+  }
+  if (mode === "random") {
+    const gap = Math.min(3, base.length - 1);
+    const ok = base.filter(n => !recent.includes(n)), arr = ok.length ? ok : base;
+    const name = arr[Math.random()*arr.length|0];
+    recent.push(name); if (recent.length > gap) recent.shift();
+    return name;
+  }
+  pool = pool.filter(n => base.includes(n));
+  if (!pool.length) pool = shuffle([...base]);
+  return pool.pop();
+}
+
+// ---- drawing ----
+function fit(){                                   // size names so ALL fit in one column / one row
+  if (view !== "play" || !gameOn) return;
+  const b = $("board"), n = total(); if (!n || !b.clientWidth) return;
+  const maxLen = Math.min(14, Math.max(...list().map(x => x.length)));
+  if (orient === "v") {
+    const rowH = (b.clientHeight - 16 - (n-1)*6) / n;
+    b.style.setProperty("--fs", Math.max(9, Math.min(30, rowH*.5, (b.clientWidth - 50) / (maxLen*.6 + 3.4))).toFixed(1) + "px");
+  } else {
+    const colW = (b.clientWidth - 24 - (n-1)*6) / n;
+    b.style.setProperty("--hfs", Math.max(9, Math.min(26, (colW - 10) / 3.4)).toFixed(1) + "px");
+    [...b.children].forEach(c => {
+      const t = c.querySelector("b"), len = t.textContent.length;
+      t.style.fontSize = Math.max(9, Math.min(30, (colW - 10) / (len * .58))).toFixed(1) + "px";
+    });
+  }
+}
+function renderBoard(){
+  const cur = hist[idx], al = alive(cls), L = list();
+  const lead = (al.length === 1 && total() > 1) ? al[0] : null;
+  $("board").innerHTML = L.map((n,i) => {
+    const l = getL(cls,n);
+    return `<div class="chip${l<=0?" out":""}${n===cur?" cur":""}${n===lead?" lead":""}" data-i="${i}"><b>${l<=0?"💀 ":""}${n}</b><span class="hh">${hearts(l)}</span></div>`;
+  }).join("");
+  fit();
+}
+function show(anim){
+  const nm = $("nm"); nm.className = "";
+  const n = hist[idx];
+  $("nu").hidden = true;
+  if (gameOn) {
+    renderBoard();
+    const al = alive(cls);
+    if (al.length === 0) { nm.textContent = "💀 Game over"; nm.className = "over"; $("hs").innerHTML = ""; return; }
+    if (al.length === 1 && total() > 1) { nm.textContent = "🏆 " + al[0]; nm.className = "win"; $("hs").innerHTML = hearts(getL(cls, al[0])); return; }
+  }
+  if (n === undefined) { nm.textContent = "?"; return; }
+  if (nums[idx] == null) nums[idx] = genItem(n);
+  $("nu").textContent = fmtItem(nums[idx]); $("nu").hidden = false;
+  ordIdx = list().indexOf(n);
+  const l = getL(cls, n), out = gameOn && l <= 0;
+  nm.textContent = (out ? "💀 " : "") + n;
+  if (out) nm.classList.add("out");
+  if (gameOn) $("hs").innerHTML = hearts(l, anim === "loss" ? Math.floor(l) : -1);
+  if (anim === "loss") { pulse(nm, "shake"); pulse($("app"), "flash"); }
+}
+
+// ---- actions ----
+const down = () => {
+  if (idx < hist.length - 1) idx++;
+  else { const n = pickName(); if (n === null) { show(); return; } pushPick(n); }
+  show();
+};
+const up = () => { if (idx > 0) { idx--; show(); } };
+const adjust = d => {
+  if (!gameOn || idx < 0) return;
+  const n = hist[idx], l = getL(cls, n);
+  if (d < 0 && (over() || l <= 0)) return;
+  const v = Math.max(0, Math.min(MAXL, l + d)); if (v === l) return;
+  setL(cls, n, v); if (d > 0) pool = [];
+  show(d < 0 ? "loss" : "");
+};
+
+// ---- views ----
+const setView = v => {
+  view = v;
+  $("v1").hidden = v !== "class"; $("v3").hidden = v !== "setup"; $("v2").hidden = v !== "play";
+  fit();
+};
+const paintMode = () => document.querySelectorAll("[data-m]").forEach(b => b.classList.toggle("on", b.dataset.m === mode));
+const paintGame = () => {
+  $("gm").classList.toggle("on", gameOn); $("gm").textContent = gameOn ? "♥ an" : "♥";
+  ["l1","sl","or","rs","board","hs","m1","m2","p2","p1"].forEach(id => $(id).hidden = !gameOn);
+  const v2 = $("v2"); v2.classList.toggle("lives", gameOn); v2.classList.toggle("v", orient === "v"); v2.classList.toggle("h", orient === "h");
+  $("or").textContent = orient === "v" ? "⬍ hochkant" : "⬌ breit";
+  document.querySelectorAll("#sl button").forEach(b => b.classList.toggle("on", +b.dataset.n === start));
+  fit();
+};
+const paintRangeBtn = () => {
+  $("at").textContent = content === "abc" ? "👥 🔤 Alphabet" + (abcDiph ? " + au ei" : "")
+    : "👥 🔢 " + (sel.length <= 2 ? sel.map(fmtR).join(" · ") : sel.length + " Bereiche");
+};
+
+function renderSetup(){
+  const ab = ABSENT[cls] || new Set(), all = CLASSES[cls];
+  $("rl").innerHTML = all.map((n,i) => `<div class="rc${ab.has(n)?" off":""}" data-i="${i}"><b class="rn"><span>${ab.has(n)?"✗":"✓"}</span>${n}</b>${content==="abc"?`<i class="ez${EASY.has(cls+"|"+n)?" on":""}" title="Nur leichte Buchstaben">🔰</i>`:""}</div>`).join("");
+  document.querySelectorAll("#ct button").forEach(b => b.classList.toggle("on", b.dataset.ct === content));
+  $("numbox").hidden = content !== "num"; $("abcbox").hidden = content !== "abc";
+  $("hardb").textContent = "⭐ Schwierige Buchstaben öfter"; $("hardb").classList.toggle("on", abcHard);
+  $("diphb").textContent = "🔊 Diphthonge au · eu · ie · ei"; $("diphb").classList.toggle("on", abcDiph);
+  $("rt").textContent = cls + " · " + (all.length - ab.size) + "/" + all.length + " da";
+  $("pre").querySelectorAll("button").forEach(b => b.classList.toggle("on", sel.includes(b.dataset.r)));
+  $("sel").innerHTML = sel.length
+    ? sel.map(r => `<span class="sc" data-r="${r}" title="Antippen = entfernen">${fmtR(r)}<i>✕</i></span>`).join("")
+    : '<span class="lab">Bitte mindestens einen Bereich wählen</span>';
+  checkRange();
+}
+function pending(){                                  // what is typed in the "eigener Bereich" boxes
+  const a = $("lo").value, b = $("hi").value;
+  if (a === "" && b === "") return { empty: true };
+  const A = +a, B = +b, ok = a !== "" && b !== "" && Number.isInteger(A) && Number.isInteger(B) && A >= 0 && B >= A && B <= 999;
+  return { empty: false, ok, r: A + "-" + B };
+}
+function checkRange(){
+  const p = pending();
+  $("lo").classList.toggle("bad", !p.empty && !p.ok); $("hi").classList.toggle("bad", !p.empty && !p.ok);
+  $("rmsg").textContent = (!p.empty && !p.ok) ? "„von“ muss kleiner oder gleich „bis“ sein (0–999)" : "";
+  $("add").disabled = p.empty || !p.ok;
+  $("go").disabled = !list().length || (content === "num" && ((!p.empty && !p.ok) || (!sel.length && p.empty)));
+}
+const addCustom = () => { const p = pending(); if (p.empty || !p.ok) return; if (!sel.includes(p.r)) sortR(sel.push(p.r) && sel); $("lo").value = ""; $("hi").value = ""; };
+
+// ---- wiring ----
+$("v1").innerHTML = Object.keys(CLASSES).map(c => `<button data-c="${c}">${c}</button>`).join("");
+$("v1").querySelectorAll("button").forEach(b => b.onclick = () => { cls = b.dataset.c; $("chg").textContent = "◂ " + cls; renderSetup(); setView("setup"); });
+$("pre").innerHTML = PRESETS.map(r => `<button data-r="${r}">${r.replace("-", "–")}</button>`).join("");
+$("pre").onclick = e => {                              // tap presets on/off – any number of them
+  const b = e.target.closest("button"); if (!b) return;
+  const r = b.dataset.r, i = sel.indexOf(r);
+  if (i >= 0) sel.splice(i, 1); else sortR(sel.push(r) && sel);
+  renderSetup();
+};
+$("sel").onclick = e => { const c = e.target.closest(".sc"); if (!c) return; sel = sel.filter(r => r !== c.dataset.r); renderSetup(); };
+["lo","hi"].forEach(id => $(id).oninput = checkRange);
+$("add").onclick = () => { addCustom(); renderSetup(); };
+$("rb").onclick = () => setView("class");
+$("rl").onclick = e => {
+  const b = e.target.closest(".rc"); if (!b) return;
+  const n = CLASSES[cls][+b.dataset.i];
+  if (e.target.closest(".ez")) { const k = cls + "|" + n; EASY.has(k) ? EASY.delete(k) : EASY.add(k); saveEasy(); renderSetup(); return; }   // 🔰 only easy letters
+  const ab = ABSENT[cls] = ABSENT[cls] || new Set();
+  ab.has(n) ? ab.delete(n) : ab.add(n); renderSetup();
+};
+document.querySelectorAll("#ct button").forEach(b => b.onclick = () => { content = b.dataset.ct; lsSet("ncontent", content); renderSetup(); });
+$("hardb").onclick = () => { abcHard = !abcHard; lsSet("nhard", abcHard ? "1" : "0"); renderSetup(); };
+$("diphb").onclick = () => { abcDiph = !abcDiph; lsSet("ndiph", abcDiph ? "1" : "0"); renderSetup(); };
+$("ra").onclick = () => { ABSENT[cls] = new Set(); renderSetup(); };
+$("go").onclick = () => {
+  if (content === "num") {
+    const p = pending();
+    if (!list().length || (!p.empty && !p.ok)) return;
+    addCustom();                                       // typed-in range that was not added yet counts too
+    if (!sel.length) return;
+    lsSet("nsel", sel.join(","));
+  } else if (!list().length) return;
+  pool = []; recent = []; hist = []; nums = []; idx = -1; ordIdx = -1; lastNum = -1;
+  paintRangeBtn(); setView("play"); paintMode(); paintGame(); down();
+};
+$("at").onclick = () => { renderSetup(); setView("setup"); };
+$("chg").onclick = () => setView("class");
+document.querySelectorAll("[data-m]").forEach(b => b.onclick = () => { mode = b.dataset.m; lsSet("nmode", mode); pool = []; recent = []; paintMode(); });
+$("gm").onclick = () => { gameOn = !gameOn; lsSet("ngame", gameOn ? "1" : "0"); pool = []; recent = []; paintGame(); show(); };
+document.querySelectorAll("#sl button").forEach(b => b.onclick = () => {
+  start = +b.dataset.n; lsSet("nstart", start);
+  for (const k in LIVES) delete LIVES[k];
+  pool = []; recent = []; paintGame(); show();
+});
+$("or").onclick = () => { orient = orient === "v" ? "h" : "v"; lsSet("norient", orient); paintGame(); show(); };
+$("rs").onclick = () => { LIVES[cls] = {}; pool = []; recent = []; show(); };
+$("fs").onclick = () => { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen && document.documentElement.requestFullscreen(); };
+$("dn").onclick = down; $("up").onclick = up;
+$("m1").onclick = () => adjust(-1); $("m2").onclick = () => adjust(-.5);
+$("p2").onclick = () => adjust(.5);  $("p1").onclick = () => adjust(1);
+$("nu").onclick = () => { if (idx >= 0) { nums[idx] = null; show(); } };           // tap the number = new number
+$("board").onclick = e => {
+  const c = e.target.closest(".chip"); if (!c) return;
+  const i = +c.dataset.i, n = list()[i];
+  if (hist[idx] !== n) pushPick(n);
+  ordIdx = i; pool = pool.filter(x => x !== n); show();
+};
+document.addEventListener("keydown", e => {
+  if (view !== "play" || e.target.tagName === "INPUT") return;
+  if (["Space","Enter","ArrowDown","ArrowRight"].includes(e.code)) { e.preventDefault(); down(); }
+  if (["ArrowUp","ArrowLeft"].includes(e.code)) { e.preventDefault(); up(); }
+  if (["Minus","NumpadSubtract"].includes(e.code)) { e.preventDefault(); adjust(-1); }
+  if (["Equal","NumpadAdd"].includes(e.code)) { e.preventDefault(); adjust(1); }
+  if (e.code === "BracketLeft")  { e.preventDefault(); adjust(-.5); }
+  if (e.code === "BracketRight") { e.preventDefault(); adjust(.5); }
+});
+window.addEventListener("resize", fit);
+paintMode(); paintGame(); paintRangeBtn();
+</script>
+</body>
+</html>
