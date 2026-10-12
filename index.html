@@ -54,6 +54,19 @@
   #sel{display:flex;gap:8px;flex-wrap:wrap;align-items:center;min-height:42px}
   #sel .sc{background:var(--blue);color:#111;padding:8px 14px;border-radius:999px;font-weight:700;font-size:18px}
   #sel .sc i{font-style:normal;margin-left:8px;opacity:.6}
+  #gb{position:fixed;inset:0;background:#000a;z-index:40}
+  #gp{position:fixed;left:50%;top:64px;transform:translateX(-50%);width:min(980px,94vw);max-height:calc(100vh - 90px);overflow:auto;background:#0b1220;border:2px solid #334155;border-radius:18px;padding:18px;z-index:50;box-shadow:0 20px 60px #000c;display:flex;flex-direction:column;gap:12px}
+  #gp .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  #gp .row label{display:flex;gap:8px;align-items:center;color:var(--muted);font-size:17px}
+  #gp input{width:90px;font-size:22px;padding:6px 10px;border-radius:10px;border:2px solid #334155;background:#0f172a;color:var(--ink);text-align:center;user-select:text}
+  #gp input.bad{border-color:#ef4444}
+  #pre2{display:flex;flex-wrap:wrap;gap:6px}
+  #pre2 button{padding:8px 14px;font-size:17px}
+  #pre2 button.on{background:var(--blue);color:#111;font-weight:700}
+  #sel2{display:flex;gap:8px;flex-wrap:wrap}
+  #sel2 .sc{background:var(--blue);color:#111;padding:8px 14px;border-radius:999px;font-weight:700;font-size:18px;cursor:pointer}
+  #sel2 .sc i{font-style:normal;margin-left:8px;opacity:.6}
+  #gpx{padding:12px;background:var(--gold);color:#111;font-weight:800;font-size:20px}
   #go{flex:1;background:var(--gold);color:#111;font-weight:800;font-size:24px;padding:14px}
   #go:disabled{opacity:.35;cursor:default}
 
@@ -142,7 +155,8 @@
   <div id="v2" hidden>
     <div class="top">
       <button id="chg" title="Klasse wechseln"></button>
-      <button id="at" title="Wer ist da? / Zahlenbereich ändern"></button>
+      <button id="at" title="Wer ist da? (Fehlende abwählen, Klasse neu starten)">👥</button>
+      <button id="rgb" title="Zahlen dazunehmen / wegnehmen – mitten im Spiel"></button>
       <span class="sp"></span>
       <div class="seg">
         <button data-m="order"  title="Der Reihe nach">➡️</button>
@@ -171,6 +185,26 @@
       <button id="dn" title="weiter">▼</button>
     </div>
   </div>
+</div>
+
+<div id="gb" hidden></div>
+<div id="gp" hidden>
+  <div id="pnum" class="col" style="display:flex;flex-direction:column;gap:12px">
+    <div class="lab">Zahlen dazunehmen oder wegnehmen – gilt ab der nächsten Zahl, das Spiel läuft weiter:</div>
+    <div id="pre2"></div>
+    <div class="row">
+      <label>eigener Bereich: von <input id="lo2" type="number" min="0" max="999" inputmode="numeric"></label>
+      <label>bis <input id="hi2" type="number" min="0" max="999" inputmode="numeric"></label>
+      <button id="add2" class="tg">＋ hinzufügen</button>
+      <span class="lab" id="rmsg2"></span>
+    </div>
+    <div id="sel2"></div>
+  </div>
+  <div id="pabc" hidden class="row">
+    <button id="hardb2" class="tg"></button>
+    <button id="diphb2" class="tg"></button>
+  </div>
+  <button id="gpx">Fertig ✓</button>
 </div>
 
 <script>
@@ -335,8 +369,8 @@ const paintGame = () => {
   fit();
 };
 const paintRangeBtn = () => {
-  $("at").textContent = content === "abc" ? "👥 🔤 Alphabet" + (abcDiph ? " + au ei" : "")
-    : "👥 🔢 " + (sel.length <= 2 ? sel.map(fmtR).join(" · ") : sel.length + " Bereiche");
+  $("rgb").textContent = content === "abc" ? "🔤 Alphabet" + (abcDiph ? " + au ei" : "") + " ▾"
+    : "🔢 " + (sel.length <= 2 ? sel.map(fmtR).join(" · ") : sel.length + " Bereiche") + " ▾";
 };
 
 function renderSetup(){
@@ -353,8 +387,8 @@ function renderSetup(){
     : '<span class="lab">Bitte mindestens einen Bereich wählen</span>';
   checkRange();
 }
-function pending(){                                  // what is typed in the "eigener Bereich" boxes
-  const a = $("lo").value, b = $("hi").value;
+function pending(ia = "lo", ib = "hi"){              // what is typed in the "eigener Bereich" boxes
+  const a = $(ia).value, b = $(ib).value;
   if (a === "" && b === "") return { empty: true };
   const A = +a, B = +b, ok = a !== "" && b !== "" && Number.isInteger(A) && Number.isInteger(B) && A >= 0 && B >= A && B <= 999;
   return { empty: false, ok, r: A + "-" + B };
@@ -366,7 +400,7 @@ function checkRange(){
   $("add").disabled = p.empty || !p.ok;
   $("go").disabled = !list().length || (content === "num" && ((!p.empty && !p.ok) || (!sel.length && p.empty)));
 }
-const addCustom = () => { const p = pending(); if (p.empty || !p.ok) return; if (!sel.includes(p.r)) sortR(sel.push(p.r) && sel); $("lo").value = ""; $("hi").value = ""; };
+const addCustom = (ia = "lo", ib = "hi") => { const p = pending(ia, ib); if (p.empty || !p.ok) return false; if (!sel.includes(p.r)) sortR(sel.push(p.r) && sel); $(ia).value = ""; $(ib).value = ""; return true; };
 
 // ---- wiring ----
 $("v1").innerHTML = Object.keys(CLASSES).map(c => `<button data-c="${c}">${c}</button>`).join("");
@@ -427,7 +461,7 @@ $("board").onclick = e => {
   ordIdx = i; pool = pool.filter(x => x !== n); show();
 };
 document.addEventListener("keydown", e => {
-  if (view !== "play" || e.target.tagName === "INPUT") return;
+  if (view !== "play" || e.target.tagName === "INPUT" || !$("gp").hidden) return;
   if (["Space","Enter","ArrowDown","ArrowRight"].includes(e.code)) { e.preventDefault(); down(); }
   if (["ArrowUp","ArrowLeft"].includes(e.code)) { e.preventDefault(); up(); }
   if (["Minus","NumpadSubtract"].includes(e.code)) { e.preventDefault(); adjust(-1); }
@@ -435,6 +469,39 @@ document.addEventListener("keydown", e => {
   if (e.code === "BracketLeft")  { e.preventDefault(); adjust(-.5); }
   if (e.code === "BracketRight") { e.preventDefault(); adjust(.5); }
 });
+// ---- change numbers / letters in the middle of the game ----
+const saveSel = () => lsSet("nsel", sel.join(","));
+function renderPanel(){
+  $("pnum").hidden = content !== "num"; $("pabc").hidden = content !== "abc";
+  if (content === "num") {
+    $("pre2").querySelectorAll("button").forEach(b => b.classList.toggle("on", sel.includes(b.dataset.r)));
+    $("sel2").innerHTML = sel.map(r => `<span class="sc" data-r="${r}" title="Antippen = entfernen">${fmtR(r)}<i>✕</i></span>`).join("");
+    const p = pending("lo2", "hi2");
+    $("lo2").classList.toggle("bad", !p.empty && !p.ok); $("hi2").classList.toggle("bad", !p.empty && !p.ok);
+    $("add2").disabled = p.empty || !p.ok;
+  } else {
+    $("hardb2").textContent = "⭐ Schwierige Buchstaben öfter"; $("hardb2").classList.toggle("on", abcHard);
+    $("diphb2").textContent = "🔊 Diphthonge au · eu · ie · ei"; $("diphb2").classList.toggle("on", abcDiph);
+  }
+  paintRangeBtn();
+}
+const openPanel  = () => { renderPanel(); $("gb").hidden = false; $("gp").hidden = false; };
+const closePanel = () => { if (content === "num" && addCustom("lo2", "hi2")) saveSel(); $("gb").hidden = true; $("gp").hidden = true; paintRangeBtn(); };
+$("pre2").innerHTML = PRESETS.map(r => `<button data-r="${r}">${fmtR(r)}</button>`).join("");
+$("pre2").onclick = e => {
+  const b = e.target.closest("button"); if (!b) return;
+  const r = b.dataset.r, i = sel.indexOf(r);
+  if (i >= 0) { if (sel.length > 1) sel.splice(i, 1); }                   // at least one range stays
+  else sortR(sel.push(r) && sel);
+  saveSel(); renderPanel();
+};
+$("sel2").onclick = e => { const c = e.target.closest(".sc"); if (!c || sel.length < 2) return; sel = sel.filter(r => r !== c.dataset.r); saveSel(); renderPanel(); };
+["lo2","hi2"].forEach(id => { $(id).oninput = renderPanel; $(id).onkeydown = e => { if (e.key === "Enter") { if (addCustom("lo2", "hi2")) saveSel(); renderPanel(); } }; });
+$("add2").onclick = () => { if (addCustom("lo2", "hi2")) saveSel(); renderPanel(); };
+$("hardb2").onclick = () => { abcHard = !abcHard; lsSet("nhard", abcHard ? "1" : "0"); renderPanel(); };
+$("diphb2").onclick = () => { abcDiph = !abcDiph; lsSet("ndiph", abcDiph ? "1" : "0"); renderPanel(); };
+$("rgb").onclick = openPanel; $("gpx").onclick = closePanel; $("gb").onclick = closePanel;
+
 window.addEventListener("resize", fit);
 paintMode(); paintGame(); paintRangeBtn();
 </script>
