@@ -15,13 +15,23 @@
   #app{display:flex;flex-direction:column;height:100vh;background:var(--bg)}
   #app.flash{animation:flash .5s}
 
-  #v1{flex:1;min-height:0;display:flex;flex-direction:column}
-  #v1 .half{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;gap:8px;padding:10px 12px}
+  #v1{flex:1;min-height:0;display:flex;flex-direction:column;overflow:auto}
+  #v1 .half{flex:1 0 auto;display:flex;flex-direction:column;justify-content:center;gap:8px;padding:10px 12px}
   #v1 .half + .half{border-top:2px solid #1e293b}
   #v1 .cap{color:var(--muted);font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
   #cl,#tps{display:flex;flex-wrap:wrap;gap:8px}
   #cl button,#tps button{padding:12px 16px;font-size:clamp(15px,3.4vw,24px);border:2px solid transparent}
   #cl button.on,#tps button.on{background:var(--gold);color:#111;font-weight:800}
+  #opts,#opts2{display:flex;flex-direction:column;gap:6px;width:100%}
+  .orow{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+  #opts button,#opts2 button{padding:6px 10px!important;font-size:15px!important}
+  #opts input,#opts2 input{width:64px;font-size:17px;padding:5px;border-radius:9px;border:2px solid #334155;background:#0f172a;color:var(--ink);text-align:center;user-select:text}
+  #opts input.bad,#opts2 input.bad{border-color:#ef4444}
+  #opts button:disabled,#opts2 button:disabled{opacity:.35}
+  .sc{background:#2b3a52;border-radius:8px;padding:4px 9px;font-size:14px;cursor:pointer}
+  #en.big{font-size:clamp(60px,min(16vw,28vh),200px);line-height:1}
+  #app.lives.v #en.big{font-size:clamp(50px,min(12vw,22vh),150px)}
+  #app.lives.v #de{font-size:clamp(22px,min(5vw,7vh),48px)}
   #go1{margin:6px 12px 12px;padding:12px;background:var(--gold);color:#111;font-weight:800;font-size:22px}
   #go1:disabled{opacity:.35;cursor:default}
 
@@ -125,7 +135,7 @@
   <!-- 1: choose class -->
   <div id="v1">
     <div class="half"><div class="cap">Klasse</div><div id="cl"></div></div>
-    <div class="half"><div class="cap">Thema</div><div id="tps"></div></div>
+    <div class="half"><div class="cap">Thema</div><div id="tps"></div><div id="opts" hidden></div></div>
     <button id="go1" disabled>Los ▶</button>
   </div>
 
@@ -151,7 +161,7 @@
       <button id="gm" title="Spielmodus mit Leben">♥</button>
       <button id="pip" title="Als schwebendes Fenster über allem anzeigen">⧉</button>
     </div>
-    <div class="top" id="top3" hidden><span class="lab">Thema:</span><div class="modes wrap" id="tps2"></div></div>
+    <div class="top" id="top3" hidden><span class="lab">Thema:</span><div class="modes wrap" id="tps2"></div><div id="opts2" hidden></div></div>
     <div class="top" id="top2" hidden>
       <span class="lab">Leben:</span>
       <div class="modes" id="sl">
@@ -201,13 +211,47 @@ const TOPICS = [
   { id: "sein",   label: "sein",              verb: "sein" },
   { id: "haben",  label: "haben",             verb: "haben" },
   { id: "sein20", label: "sein + Alter 0–20",  verb: "sein", age: [0, 20] },
-  { id: "sein100",label: "sein + Alter 0–100", verb: "sein", age: [0, 100] }
+  { id: "sein100",label: "sein + Alter 0–100", verb: "sein", age: [0, 100] },
+  { id: "zahl",   label: "Zahlen",            nums: true },
+  { id: "abc",    label: "Alphabet",          abc: true }
 ];
-let topic = lsGet("otopic") || "none", deck = [], lastP = -1, lastAge = -1, revealed = false, ph = [];
+// ---- numbers & alphabet ----
+const PRESETS = ["0-5","5-10","0-10","0-12","10-15","15-20","10-20","0-20","20-30","30-40","40-50","50-60","60-70","70-80","80-90","90-100","0-100"];
+const fmtR = r => r.replace("-", "–");
+const sortR = a => a.sort((x, y) => +x.split("-")[0] - +y.split("-")[0] || +x.split("-")[1] - +y.split("-")[1]);
+let sel = (lsGet("snsel") || "0-10").split(",").filter(r => /^\d+-\d+$/.test(r)); if (!sel.length) sel = ["0-10"];
+let abcHard = lsGet("snhard") !== "0", abcDiph = lsGet("sndiph") === "1", lastItem = null;
+const EASY = new Set(["S-De-x1a|Fred T."]);                 // only easy letters for these pupils
+const HARD = "ghijzvwyeq".split(""), DIPH = ["au","eu","ie","ei"];
+const LETTERS = "abcdefghijklmnopqrstuvwxyz".split("");
+const LNAME = {a:"ah",b:"be",c:"ze",d:"de",e:"eh",f:"eff",g:"ge",h:"ha",i:"ih",j:"jott",k:"ka",l:"ell",m:"emm",n:"enn",o:"oh",p:"pe",q:"ku",r:"err",s:"ess",t:"te",u:"uh",v:"fau",w:"we",x:"iks",y:"üppsilon",z:"zett"};
+const DNAME = {au:"au",eu:"eu  (oi)",ie:"ie  (ih)",ei:"ei  (ai)"};
+const ONES = ["null","eins","zwei","drei","vier","fünf","sechs","sieben","acht","neun","zehn","elf","zwölf","dreizehn","vierzehn","fünfzehn","sechzehn","siebzehn","achtzehn","neunzehn"];
+const TENS = ["","","zwanzig","dreißig","vierzig","fünfzig","sechzig","siebzig","achtzig","neunzig"];
+const word99 = n => n < 20 ? ONES[n] : (n % 10 ? (n % 10 === 1 ? "ein" : ONES[n % 10]) + "und" : "") + TENS[n / 10 | 0];
+const numWord = n => n < 100 ? word99(n) : ((n / 100 | 0) === 1 ? "ein" : ONES[n / 100 | 0]) + "hundert" + (n % 100 ? word99(n % 100) : "");
+const allNums = () => { const set = new Set(); sel.forEach(r => { const [a,b] = r.split("-").map(Number); for (let i = a; i <= b; i++) set.add(i); }); return [...set]; };
+function numPrompt(){
+  const A = allNums(); let n, t = 0;
+  do { n = A[Math.random()*A.length|0]; } while (n === lastItem && A.length > 1 && ++t < 50);
+  lastItem = n; return { en: String(n), de: numWord(n), big: true };
+}
+function abcPrompt(name){
+  const easy = EASY.has(cls + "|" + name), pool = [];
+  LETTERS.forEach(l => { const w = (abcHard && !easy && HARD.includes(l)) ? 3 : 1; if (!(easy && HARD.includes(l))) for (let i = 0; i < w; i++) pool.push(l); });
+  if (abcDiph && !easy) DIPH.forEach(d => { for (let i = 0; i < (abcHard ? 3 : 1); i++) pool.push(d); });
+  let x, t = 0; do { x = pool[Math.random()*pool.length|0]; } while (x === lastItem && ++t < 50);
+  lastItem = x;
+  return { en: x.length === 1 ? x.toUpperCase() : x, de: x.length === 1 ? LNAME[x] : DNAME[x], big: true };
+}
+let topic = lsGet("stopic") || "none", deck = [], lastP = -1, lastAge = -1, revealed = false, ph = [];
 if (!TOPICS.some(t => t.id === topic)) topic = "none";
 const curTopic = () => TOPICS.find(t => t.id === topic);
-function newPrompt(){
-  const t = curTopic(); if (!t.verb) return null;
+function newPrompt(name){
+  const t = curTopic();
+  if (t.nums) return numPrompt();
+  if (t.abc)  return abcPrompt(name);
+  if (!t.verb) return null;
   const V = VERBS[t.verb];
   if (t.age) {
     let p, a;
@@ -301,7 +345,7 @@ function paintPrompt(visible){
   const p = ph[idx], pr = $("pr");
   pr.hidden = !(visible && p);
   if (pr.hidden) return;
-  $("en").textContent = p.en;
+  $("en").textContent = p.en; $("en").classList.toggle("big", !!p.big);
   $("de").textContent = revealed ? p.de : "👁 Deutsch zeigen";
   $("de").className = revealed ? "" : "hide";
 }
@@ -334,7 +378,7 @@ function renderRoster(){
 // ---- actions ----
 const down = () => {
   if (idx < hist.length - 1) idx++;
-  else { const n = pickName(); if (n === null) { show(); return; } hist.push(n); ph.push(newPrompt()); idx = hist.length - 1; }
+  else { const n = pickName(); if (n === null) { show(); return; } hist.push(n); ph.push(newPrompt(n)); idx = hist.length - 1; }
   revealed = false; show();
 };
 const up = () => { if (idx > 0) { idx--; revealed = false; show(); } };
@@ -354,13 +398,47 @@ const paintTopic = () => {
   APP.querySelectorAll("[data-t]").forEach(b => b.classList.toggle("on", b.dataset.t === topic));
 };
 const setTopic = id => {
-  topic = id; lsSet("otopic", id); deck = []; lastP = -1; lastAge = -1; revealed = false;
-  if (view === "play" && idx >= 0) ph[idx] = newPrompt();
-  $("top3").hidden = true; paintTopic(); resizePip(); show(); fit();
+  topic = id; lsSet("stopic", id); deck = []; lastP = -1; lastAge = -1; revealed = false;
+  lastItem = null; if (view === "play" && idx >= 0) ph[idx] = newPrompt(hist[idx]);
+  renderOpts(); $("top3").hidden = !(curTopic().nums || curTopic().abc); paintTopic(); resizePip(); show(); fit();
+};
+const saveOpts = () => { lsSet("snsel", sel.join(",")); lsSet("snhard", abcHard ? "1" : "0"); lsSet("sndiph", abcDiph ? "1" : "0"); };
+const optsHTML = () => {
+  const t = curTopic();
+  if (t.nums) return `<div class="orow">${PRESETS.map(r => `<button data-r="${r}" class="${sel.includes(r) ? "on" : ""}">${fmtR(r)}</button>`).join("")}</div>
+    <div class="orow"><span class="lab">eigener Bereich: von</span><input class="lo" type="number" min="0" max="999" inputmode="numeric"><span class="lab">bis</span><input class="hi" type="number" min="0" max="999" inputmode="numeric"><button class="oadd" disabled>＋</button>
+    ${sel.map(r => `<span class="sc" data-x="${r}" title="Antippen = entfernen">${fmtR(r)} ✕</span>`).join("")}</div>`;
+  if (t.abc) return `<div class="orow"><button class="hb ${abcHard ? "on" : ""}">⭐ Schwierige Buchstaben öfter</button><button class="db ${abcDiph ? "on" : ""}">🔊 Diphthonge au · eu · ie · ei</button></div>`;
+  return "";
+};
+const renderOpts = () => {
+  ["opts","opts2"].forEach(id => {
+    const c = $(id), keep = [...c.querySelectorAll("input")].map(i => i.value);
+    c.innerHTML = optsHTML(); c.hidden = !c.innerHTML;
+    c.querySelectorAll("input").forEach((i, k) => { i.value = keep[k] || ""; });
+    checkAdd(c);
+  });
+};
+const readR = c => { const lo = c.querySelector(".lo"), hi = c.querySelector(".hi"); if (!lo) return null; const a = lo.value, b = hi.value; if (a === "" && b === "") return { empty: true }; if (a === "" || b === "" || +a < 0 || +b > 999 || +a > +b) return { bad: true }; return { r: +a + "-" + +b }; };
+function checkAdd(c){ const p = readR(c); if (!p) return; const bad = !p.empty && p.bad; c.querySelector(".lo").classList.toggle("bad", bad); c.querySelector(".hi").classList.toggle("bad", bad); c.querySelector(".oadd").disabled = !p.r; }
+const addTyped = c => { const p = readR(c); if (p && p.r && !sel.includes(p.r)) { sortR(sel.push(p.r) && sel); saveOpts(); return true; } return !!(p && p.r); };
+const bindOpts = c => {
+  c.onclick = e => {
+    const b = e.target.closest("button, .sc"); if (!b) return;
+    if (b.dataset.r) { const i = sel.indexOf(b.dataset.r); if (i >= 0) { if (sel.length > 1) sel.splice(i, 1); } else sortR(sel.push(b.dataset.r) && sel); }
+    else if (b.dataset.x) { if (sel.length > 1) sel = sel.filter(r => r !== b.dataset.x); }
+    else if (b.classList.contains("oadd")) { addTyped(c); c.querySelectorAll("input").forEach(i => i.value = ""); }
+    else if (b.classList.contains("hb")) abcHard = !abcHard;
+    else if (b.classList.contains("db")) abcDiph = !abcDiph;
+    else return;
+    saveOpts(); renderOpts();
+  };
+  c.oninput = () => checkAdd(c);
+  c.onkeydown = e => { if (e.key === "Enter" && e.target.tagName === "INPUT") { addTyped(c); c.querySelectorAll("input").forEach(i => i.value = ""); saveOpts(); renderOpts(); } };
 };
 const sizeFor = () => {
   const aw = (screen.availWidth || 1300) - 30, ah = (screen.availHeight || 900) - 50;
-  if (view === "class")  return [520, 400];
+  if (view === "class")  return [560, topic === "zahl" ? 640 : topic === "abc" ? 500 : 400];
   if (view === "roster") return [Math.min(aw, 460), Math.min(ah, 190 + Math.ceil((cls ? CLASSES[cls].length : 9) / 3) * 44)];
   const T = topic !== "none";
   if (!gameOn) return T ? [580, 270] : [320, 170];
@@ -413,6 +491,8 @@ const tbtn = TOPICS.map(t => `<button data-t="${t.id}">${t.label}</button>`).joi
 $("tps").innerHTML = tbtn; $("tps2").innerHTML = tbtn;
 APP.querySelectorAll("[data-t]").forEach(b => b.onclick = () => setTopic(b.dataset.t));
 $("tp").onclick = () => { $("top3").hidden = !$("top3").hidden; fit(); };
+bindOpts($("opts")); bindOpts($("opts2"));
+$("go1").addEventListener("click", () => { if (cls && addTyped($("opts"))) renderOpts(); }, true);          // a typed range counts even without ＋
 $("pr").onclick = () => { revealed = !revealed; paintPrompt(true); };
 $("chg").onclick = () => setView("class");
 
@@ -431,7 +511,7 @@ $("p2").onclick = () => adjust(.5); $("p1").onclick = () => adjust(1);
 $("board").onclick = e => {
   const c = e.target.closest(".chip"); if (!c) return;
   const i = +c.dataset.i, n = list()[i];
-  if (hist[idx] !== n) { hist.length = idx + 1; ph.length = idx + 1; hist.push(n); ph.push(newPrompt()); idx = hist.length - 1; revealed = false; }
+  if (hist[idx] !== n) { hist.length = idx + 1; ph.length = idx + 1; hist.push(n); ph.push(newPrompt(n)); idx = hist.length - 1; revealed = false; }
   ordIdx = i; pool = pool.filter(x => x !== n); show();
 };
 
@@ -465,7 +545,7 @@ $("pip").onclick = async () => {
   setTimeout(fit, 100);
 };
 
-paintMode(); paintTopic(); paintGame();
+renderOpts(); paintMode(); paintTopic(); paintGame();
 </script>
 </body>
 </html>
